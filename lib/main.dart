@@ -1,34 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
+import 'package:system_tray/system_tray.dart';
 
 void main() async {
-  // Must add this line.
   WidgetsFlutterBinding.ensureInitialized();
-  // For hot reload, `unregisterAll()` needs to be called.
-  await hotKeyManager.unregisterAll();
-
-  HotKey hotKey = HotKey(
-    key: PhysicalKeyboardKey.keyQ,
-    modifiers: [HotKeyModifier.control],
-    scope: HotKeyScope.system,
-  );
-
-  await hotKeyManager.register(
-    hotKey,
-    keyDownHandler: (hotKey) {
-      print('onKeyDown+${hotKey.toJson()}');
-    },
-    // Only works on macOS.
-    keyUpHandler: (hotKey){
-      print('onKeyUp+${hotKey.toJson()}');
-    } ,
-  );
 
   runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeHotKey();
+  }
+
+  void _initializeHotKey() async {
+    await _setupHotKey();
+  }
+
+  Future<void> _setupHotKey() async {
+    // For hot reload, `unregisterAll()` needs to be called.
+    await hotKeyManager.unregisterAll();
+
+    HotKey hotKey = HotKey(
+      key: PhysicalKeyboardKey.keyQ,
+      modifiers: [HotKeyModifier.control],
+      scope: HotKeyScope.system,
+    );
+
+    await hotKeyManager.register(
+      hotKey,
+      keyDownHandler: (hotKey) {
+        print('onKeyDown+${hotKey.toJson()}');
+      },
+      // Only works on macOS.
+      keyUpHandler: (hotKey) {
+        print('onKeyUp+${hotKey.toJson()}');
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
