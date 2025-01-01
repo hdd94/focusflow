@@ -1,114 +1,126 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:hotkey_manager/hotkey_manager.dart';
-import 'package:system_tray/system_tray.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(MyApp());
+  // Initialisierung des FlutterLocalNotificationsPlugins
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  // macOS spezifische Initialisierung
+  final DarwinInitializationSettings initializationSettingsDarwin = DarwinInitializationSettings();
+  final InitializationSettings initializationSettings = InitializationSettings(
+    macOS: initializationSettingsDarwin,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
+  );
+
+  runApp(MyApp(flutterLocalNotificationsPlugin));
 }
 
-class MyApp extends StatefulWidget {
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
+class MyApp extends StatelessWidget {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
 
-class _MyAppState extends State<MyApp> {
-  final SystemTray systemTray = SystemTray();
-  final AppWindow appWindow = AppWindow();
-  bool _isVisible = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initialize();
-  }
-
-  void _initialize() async {
-    await _setupHotKey();
-    await _setupSystemTray();
-  }
-
-  Future<void> _setupHotKey() async {
-    // For hot reload, `unregisterAll()` needs to be called.
-    await hotKeyManager.unregisterAll();
-
-    HotKey hotKey = HotKey(
-      key: PhysicalKeyboardKey.keyQ,
-      modifiers: [HotKeyModifier.control],
-      scope: HotKeyScope.system,
-    );
-
-    await hotKeyManager.register(
-      hotKey,
-      keyDownHandler: (hotKey) {
-        // Aktion bei Drücken von Control + Q
-        debugPrint('Control + Q wurde gedrückt');
-        _isVisible ? _hideWindow() : _showWindow();
-      },
-      // // Only works on macOS.
-      // keyUpHandler: (hotKey) {
-      //   print('onKeyUp+${hotKey.toJson()}');
-      // },
-    );
-  }
-
-  Future<void> _setupSystemTray() async {
-    String path =
-        Platform.isWindows ? 'assets/app_icon.ico' : 'assets/app_icon.ico';
-
-    // SystemTray initialisieren
-    await systemTray.initSystemTray(
-      title: "System Tray App",
-      iconPath: path,
-    );
-
-    // Erstellen eines Kontextmenüs
-    final Menu menu = Menu();
-    await menu.buildFrom([
-      MenuItemLabel(label: 'Show', onClicked: (menuItem) => _showWindow()),
-      MenuItemLabel(label: 'Hide', onClicked: (menuItem) => _hideWindow()),
-      MenuItemLabel(label: 'Exit', onClicked: (menuItem) => appWindow.close()),
-    ]);
-
-    // Kontextmenü setzen
-    await systemTray.setContextMenu(menu);
-
-    // SystemTray-Ereignisse registrieren
-    systemTray.registerSystemTrayEventHandler((eventName) {
-      debugPrint("eventName: $eventName");
-      if (eventName == kSystemTrayEventClick) {
-        Platform.isWindows ? _showWindow() : systemTray.popUpContextMenu();
-      } else if (eventName == kSystemTrayEventRightClick) {
-        Platform.isWindows ? systemTray.popUpContextMenu() : _showWindow();
-      }
-    });
-  }
-
-  void _showWindow() {
-    appWindow.show();
-    setState(() {
-      _isVisible = true;
-    });
-  }
-
-  void _hideWindow() {
-    appWindow.hide();
-    setState(() {
-      _isVisible = false;
-    });
-  }
+  MyApp(this.flutterLocalNotificationsPlugin);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: Text("Hotkey Manager Example")),
-        body: Center(child: Text("Drücke Command + N!")),
+      title: 'Flutter Notification Example',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
       ),
+      home: HomeScreen(flutterLocalNotificationsPlugin),
     );
   }
 }
+
+class HomeScreen extends StatelessWidget {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+
+  HomeScreen(this.flutterLocalNotificationsPlugin);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Flutter Local Notifications (macOS)'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            // Benachrichtigung auslösen
+            _showNotification();
+          },
+          child: Text('Show Notification'),
+        ),
+      ),
+    );
+  }
+
+  // Funktion zum Anzeigen einer Benachrichtigung
+  Future<void> _showNotification() async {
+    const NotificationDetails notificationDetails = NotificationDetails(
+      macOS: DarwinNotificationDetails(
+        sound: 'default',
+        badgeNumber: 1,
+      ),
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      0, // ID der Benachrichtigung
+      'Pomodoro Timer', // Titel
+      'Die Pomodoro-Zeit ist abgelaufen!', // Inhalt
+      notificationDetails,
+      payload: 'timer-ended', // Optional: Zusätzliche Daten
+    );
+  }
+}
+
+// Callback-Funktion bei Klick auf die Benachrichtigung
+void onDidReceiveNotificationResponse(NotificationResponse notificationResponse) async {
+  final String? payload = notificationResponse.payload;
+  if (payload != null) {
+    debugPrint('Benachrichtigung Payload: $payload');
+  }
+  // Navigiere zur entsprechenden Seite oder führe eine andere Aktion aus
+  print("Benachrichtigung angeklickt: $payload");
+  // Hier könntest du z.B. eine neue Seite aufrufen
+}
+
+// import 'package:flutter/material.dart';
+// import 'package:focusflow/core/services/system_tray_manager.dart';
+// import 'package:focusflow/pages/dashboard_page/dashboard_page.dart';
+// import 'package:focusflow/pages/login_page/login_page.dart';
+// import 'package:focusflow/pages/settings_page/settings_page.dart';
+// import 'package:focusflow/shared/theme/app_theme.dart';
+//
+// void main() async {
+//   WidgetsFlutterBinding.ensureInitialized();
+//   await SystemTrayManager.instance.initialize();
+//   runApp(const FocusFlowApp());
+// }
+//
+// class FocusFlowApp extends StatelessWidget {
+//   const FocusFlowApp({super.key});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       debugShowCheckedModeBanner: false,
+//       title: 'FocusFlow',
+//       theme: AppTheme.theme,
+//       initialRoute: '/',
+//       routes: {
+//         // '/': (context) => LoginPage(),
+//         '/': (context) => DashboardPage(),
+//         '/dashboard': (context) => const DashboardPage(),
+//         '/settings': (context) => const SettingsPage(),
+//       },
+//     );
+//   }
+// }

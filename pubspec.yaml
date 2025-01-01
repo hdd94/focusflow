@@ -12,6 +12,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   hotkey_manager: ^0.2.3
   system_tray: ^2.0.3
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:
@@ -21,4 +22,12 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/app_icon.ico
+    - assets/app_icon.png
+    - assets/images/men_pointing.png
+
+  fonts:
+    - family: Aleo
+      fonts:
+        - asset: assets/fonts/Aleo-Regular.ttf
+        - asset: assets/fonts/Aleo-Bold.ttf
+        - asset: assets/fonts/Aleo-Light.ttf
